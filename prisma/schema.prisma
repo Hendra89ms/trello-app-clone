@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model verificationToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model passwordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String?
+  email          String?         @unique
+  emailVerified  DateTime?
+  image          String?
+  password       String?
+  accounts       Account[]
+  role           String          @default("user")
+  workspaceId    String?
+  workspaces     workspace[]
+  boards         board[]
+  card           card[]
+  list           list[]
+  favoriteBoards favoriteBoard[]
+}
+
+model workspace {
+  id       String  @id @default(uuid())
+  name     String
+  members  User[]
+  adminId  String
+  isPublic Boolean @default(false)
+  icon     String?
+
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  boards         board[]
+  invitationLink workspaceInvitationLink?
+}
+
+model board {
+  id              String               @id @default(uuid())
+  name            String
+  members         User[]
+  adminId         String
+  backgroundColor String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  lists           list[]
+  invitationLink  boardInvitationLink?
+
+  workspaceId String
+  workspace   workspace? @relation(fields: [workspaceId], references: [id])
+
+  favoriteBoard favoriteBoard?
+}
+
+model favoriteBoard {
+  id          String @id @default(uuid())
+  favoritedBy User   @relation(fields: [userId], references: [id])
+  board       board  @relation(fields: [boardId], references: [id])
+  boardId     String @unique
+
+  userId String
+
+  @@unique([id, boardId])
+}
+
+model list {
+  id        String   @id @unique @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy User     @relation(fields: [userId], references: [id])
+  cards     card[]
+  index     Int
+
+  boardId String?
+  board   board?  @relation(fields: [boardId], references: [id])
+
+  userId String
+}
+
+model card {
+  id          String   @id @unique @default(uuid())
+  title       String
+  description String?
+  tags        tag[]
+  index       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [userId], references: [id])
+
+  attachment attachment?
+  list       list?       @relation(fields: [listId], references: [id])
+
+  listId String?
+  userId String
+}
+
+model attachment {
+  id        String   @unique @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cardId String @unique
+
+  card card @relation(fields: [cardId], references: [id])
+}
+
+model tag {
+  id String @id @unique @default(uuid())
+
+  card card[]
+}
+
+model workspaceInvitationLink {
+  id          String    @id @default(uuid())
+  workspace   workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String    @unique
+
+  createdAt DateTime @default(now())
+
+  @@unique([id, workspaceId])
+}
+
+model boardInvitationLink {
+  id      String @id @default(uuid())
+  board   board  @relation(fields: [boardId], references: [id])
+  boardId String @unique
+
+  createdAt DateTime @default(now())
+
+  @@unique([id, boardId])
+}
